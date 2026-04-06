@@ -29,32 +29,13 @@
 # MAGIC %md
 # MAGIC ## Why would a pipeline re-run?
 # MAGIC
-# MAGIC ```
-# MAGIC 1. CLUSTER FAILURE
-# MAGIC    Your job is running. The cluster gets evicted.
-# MAGIC    Databricks automatically retries the task.
-# MAGIC    Same data. Same pipeline. Runs again.
-# MAGIC
-# MAGIC 2. TRANSIENT ERROR
-# MAGIC    A network timeout at 3 AM.
-# MAGIC    The job fails on task 3 of 5.
-# MAGIC    You fix nothing — just re-trigger.
-# MAGIC    Tasks 1 and 2 already ran. Now they run again.
-# MAGIC
-# MAGIC 3. BAD DATA IN SOURCE
-# MAGIC    A bug in the source system sent wrong values on Jan 15.
-# MAGIC    Source fixes it. You reprocess Jan 15.
-# MAGIC    Pipeline runs again for that date.
-# MAGIC
-# MAGIC 4. BUG IN YOUR TRANSFORM LOGIC
-# MAGIC    You discover a calculation was wrong for the last 3 months.
-# MAGIC    You fix the logic and backfill 90 days.
-# MAGIC    Pipeline runs 90 times for historical dates.
-# MAGIC
-# MAGIC 5. ACCIDENTAL DOUBLE TRIGGER
-# MAGIC    Two people. One job. Both hit "Run Now".
-# MAGIC    It happens more than you think.
-# MAGIC ```
+# MAGIC | # | Reason | What happens |
+# MAGIC |---|---|---|
+# MAGIC | 1 | **Cluster failure** | Databricks evicts the cluster mid-run and automatically retries the task |
+# MAGIC | 2 | **Transient error** | A network timeout at 3 AM. Job fails on task 3 of 5. You re-trigger — tasks 1 and 2 run again |
+# MAGIC | 3 | **Bad data in source** | Source sent wrong values for Jan 15. They fix it. You reprocess that date |
+# MAGIC | 4 | **Bug in transform logic** | A calculation was wrong for 3 months. You fix it and backfill 90 days |
+# MAGIC | 5 | **Accidental double trigger** | Two people. One job. Both hit "Run Now" |
 
 # COMMAND ----------
 
