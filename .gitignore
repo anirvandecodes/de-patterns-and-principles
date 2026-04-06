@@ -1,3 +1,6 @@
+# Video scripts (personal notes, not for repo)
+video-script-*.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
