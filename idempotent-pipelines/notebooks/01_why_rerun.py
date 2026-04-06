@@ -9,8 +9,6 @@
 # MAGIC
 # MAGIC A pipeline is **idempotent** if running it multiple times produces the **same result** as running it once.
 # MAGIC
-# MAGIC Mathematically: `f(f(x)) = f(x)`
-# MAGIC
 # MAGIC In plain English:
 # MAGIC > Re-running your pipeline on data it already processed should not change the output.
 # MAGIC
