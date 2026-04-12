@@ -1,7 +1,4 @@
 # Databricks notebook source
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC # The Problem: What Happens When You Re-run
 # MAGIC
@@ -12,6 +9,10 @@
 
 # COMMAND ----------
 
+
+
+# COMMAND ----------
+
 dbutils.widgets.text("catalog", "workspace")
 dbutils.widgets.text("schema", "idempotency_demo")
 
@@ -19,6 +20,12 @@ catalog = dbutils.widgets.get("catalog")
 schema  = dbutils.widgets.get("schema")
 
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC
+# MAGIC drop table if exists workspace.idempotency_demo.orders;
 
 # COMMAND ----------
 
@@ -40,8 +47,6 @@ source_df = spark.createDataFrame([
 
 # COMMAND ----------
 
-# ⚠️ No DROP TABLE here — this table lives between job runs
-# That is exactly how a real pipeline works
 spark.sql(f"""
     CREATE TABLE IF NOT EXISTS {catalog}.{schema}.orders
     (order_id STRING, customer_id STRING, amount DOUBLE,

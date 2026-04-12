@@ -1,7 +1,4 @@
 # Databricks notebook source
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC # Idempotency & Why It Matters
 # MAGIC
@@ -42,5 +39,3 @@
 # MAGIC %md
 # MAGIC ## The question is never IF your pipeline will re-run.
 # MAGIC ## The question is: **what happens when it does?**
-# MAGIC
-# MAGIC → Open `02_the_problem.py` to see exactly what goes wrong.
