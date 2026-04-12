@@ -1,7 +1,4 @@
 # Databricks notebook source
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC # Fix 2: MERGE INTO
 # MAGIC
@@ -49,11 +46,6 @@ spark.sql(f"""
         _loaded_at  TIMESTAMP
     )
     USING DELTA
-    CLUSTER BY (order_id)
-    TBLPROPERTIES (
-        'delta.enableDeletionVectors'     = 'true',
-        'delta.enableRowLevelConcurrency' = 'true'
-    )
 """)
 
 # COMMAND ----------

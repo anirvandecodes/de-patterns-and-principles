@@ -1,7 +1,4 @@
 # Databricks notebook source
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC # Fix 1: Dynamic Partition Overwrite
 # MAGIC
