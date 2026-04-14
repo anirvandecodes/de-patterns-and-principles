@@ -1,0 +1,13 @@
+bundle:
+  name: de-patterns-and-principles
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    default: true
+    mode: development
+    workspace:
+      profile: DEFAULT
+      host: https://dbc-aef35066-afa2.cloud.databricks.com

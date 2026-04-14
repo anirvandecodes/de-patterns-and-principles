@@ -1,0 +1,22 @@
+resources:
+  jobs:
+    orders_daily_pipeline:
+      name: "[${bundle.target}] orders_daily_pipeline"
+      tasks:
+        - task_key: "process"
+          notebook_task:
+            notebook_path: ../idempotent-pipelines/notebooks/06_backfill.py
+            source: WORKSPACE
+            base_parameters:
+              load_date: ""
+              catalog: "workspace"
+              schema: "idempotency_demo"
+              simulate_failure: "true"
+          environment_key: serverless
+
+      environments:
+        - environment_key: serverless
+          spec:
+            client: "1"
+
+      max_concurrent_runs: 4
