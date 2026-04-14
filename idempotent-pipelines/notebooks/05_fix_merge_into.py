@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Fix 6: MERGE INTO
+# MAGIC # Fix 3: MERGE INTO
 # MAGIC
 # MAGIC **Run this job as many times as you want. Row count stays 3. Always.**
 # MAGIC

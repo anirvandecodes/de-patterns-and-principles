@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Fix 5: DELETE + INSERT
+# MAGIC # Fix 4: DELETE + INSERT
 # MAGIC
 # MAGIC A simpler alternative to MERGE when you don't need to handle updates at the row level.
 # MAGIC

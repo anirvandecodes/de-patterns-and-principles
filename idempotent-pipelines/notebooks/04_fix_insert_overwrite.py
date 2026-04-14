@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Fix 4: INSERT OVERWRITE
+# MAGIC # Fix 2: INSERT OVERWRITE
 # MAGIC
 # MAGIC A SQL-first alternative to the Python partition overwrite pattern.
 # MAGIC `INSERT OVERWRITE` replaces the target partition in a single atomic SQL statement.

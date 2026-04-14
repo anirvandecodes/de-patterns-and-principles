@@ -1,8 +1,4 @@
 # Databricks notebook source
-
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC # orders_daily_pipeline
 # MAGIC
