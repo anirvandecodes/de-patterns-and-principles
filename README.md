@@ -41,7 +41,6 @@ A pipeline is **idempotent** if running it multiple times produces the same resu
 | `03_fix_partition_overwrite.py` | Fix 1 — dynamic partition overwrite                                   |
 | `04_fix_insert_overwrite.py`    | Fix 2 — INSERT OVERWRITE                                              |
 | `05_fix_merge_into.py`          | Fix 3 — MERGE INTO                                                    |
-| `06_fix_delete_insert.py`       | Fix 4 — DELETE + INSERT                                               |
-| `07_backfill.py`                | 3 backfill strategies for reprocessing historical data                |
+| `06_backfill.py`                | 3 backfill strategies for reprocessing historical data                |
 
 
