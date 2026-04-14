@@ -21,7 +21,13 @@ schema  = dbutils.widgets.get("schema")
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
 
 # THE key config — always set this for batch pipelines
-spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+#spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC
+# MAGIC drop table if exists workspace.idempotency_demo.orders_fixed_partition;
 
 # COMMAND ----------
 
@@ -29,9 +35,12 @@ from pyspark.sql import Row
 from pyspark.sql.functions import current_timestamp
 
 source_df = spark.createDataFrame([
-    Row(order_id="O001", customer_id="C1", amount=100.0, order_date="2024-01-15"),
+    Row(order_id="O001", customer_id="C1", amount=100.0, order_date="2024-01-14"),
     Row(order_id="O002", customer_id="C2", amount=200.0, order_date="2024-01-15"),
-    Row(order_id="O003", customer_id="C3", amount=150.0, order_date="2024-01-15"),
+    Row(order_id="O003", customer_id="C3", amount=150.0, order_date="2024-01-16"),
+    Row(order_id="O004", customer_id="C4", amount=120.0, order_date="2024-01-14"),
+    Row(order_id="O005", customer_id="C5", amount=180.0, order_date="2024-01-15"),
+    Row(order_id="O006", customer_id="C6", amount=170.0, order_date="2024-01-16"),
 ]).withColumn("_loaded_at", current_timestamp())
 
 # COMMAND ----------
@@ -51,16 +60,70 @@ source_df.write \
 
 # COMMAND ----------
 
-total         = spark.table(f"{catalog}.{schema}.orders_fixed_partition").count()
-total_revenue = spark.sql(f"SELECT SUM(amount) AS revenue FROM {catalog}.{schema}.orders_fixed_partition").collect()[0]["revenue"]
-
-print(f"Row count : {total}  ← always 3, no matter how many times you run this")
-print(f"Revenue   : ${total_revenue:,.2f}  ← always $450.00")
-print()
-print("✓ Idempotent. Safe to retry. Safe to backfill.")
+# MAGIC %sql
+# MAGIC select * from workspace.idempotency_demo.orders_fixed_partition order by order_date;
 
 # COMMAND ----------
 
+new_data_df = spark.createDataFrame([
+    Row(order_id="O003", customer_id="C3", amount=150.0, order_date="2024-01-16"),
+    Row(order_id="O006", customer_id="C6", amount=170.0, order_date="2024-01-16")
+]).withColumn("_loaded_at", current_timestamp())
+
+# COMMAND ----------
+
+# mode("overwrite") + partitionBy = replace only the target partition
+# All other partitions are untouched
+new_data_df.write \
+    .format("delta") \
+    .mode("overwrite") \
+    .partitionBy("order_date") \
+    .saveAsTable(f"{catalog}.{schema}.orders_fixed_partition")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC select * from workspace.idempotency_demo.orders_fixed_partition order by order_date;
+
+# COMMAND ----------
+
+# DBTITLE 1,Set the configuration
+spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+
+# COMMAND ----------
+
+from pyspark.sql import Row
+from pyspark.sql.functions import current_timestamp
+
+source_df = spark.createDataFrame([
+    Row(order_id="O001", customer_id="C1", amount=100.0, order_date="2024-01-14"),
+    Row(order_id="O002", customer_id="C2", amount=200.0, order_date="2024-01-15"),
+    Row(order_id="O003", customer_id="C3", amount=150.0, order_date="2024-01-16"),
+    Row(order_id="O004", customer_id="C4", amount=120.0, order_date="2024-01-14"),
+    Row(order_id="O005", customer_id="C5", amount=180.0, order_date="2024-01-15"),
+    Row(order_id="O006", customer_id="C6", amount=170.0, order_date="2024-01-16"),
+]).withColumn("_loaded_at", current_timestamp())
+source_df.write \
+    .format("delta") \
+    .mode("overwrite") \
+    .partitionBy("order_date") \
+    .saveAsTable(f"{catalog}.{schema}.orders_fixed_partition")
+display(spark.table(f"{catalog}.{schema}.orders_fixed_partition").orderBy("order_id"))
+
+
+# COMMAND ----------
+
+new_data_df = spark.createDataFrame([
+    Row(order_id="O003", customer_id="C3", amount=150.0, order_date="2024-01-16"),
+    Row(order_id="O006", customer_id="C6", amount=170.0, order_date="2024-01-16")
+]).withColumn("_loaded_at", current_timestamp())
+
+
+new_data_df.write \
+    .format("delta") \
+    .mode("overwrite") \
+    .partitionBy("order_date") \
+    .saveAsTable(f"{catalog}.{schema}.orders_fixed_partition")
 display(spark.table(f"{catalog}.{schema}.orders_fixed_partition").orderBy("order_id"))
 
 # COMMAND ----------
@@ -69,12 +132,12 @@ display(spark.table(f"{catalog}.{schema}.orders_fixed_partition").orderBy("order
 # MAGIC ## Why does this work?
 # MAGIC
 # MAGIC ```
-# MAGIC Table partitions:  [2024-01-13] [2024-01-14] [2024-01-15]
+# MAGIC Table partitions:  [2024-01-14] [2024-01-15] [2024-01-16]
 # MAGIC
-# MAGIC You write data for 2024-01-15 again.
+# MAGIC You write data for 2024-01-16 again.
 # MAGIC
-# MAGIC STATIC (default):  wipes ALL partitions → only Jan 15 remains  ← DANGEROUS
-# MAGIC DYNAMIC (correct): replaces ONLY Jan 15  → Jan 13, Jan 14 intact ← SAFE
+# MAGIC STATIC (default):  wipes ALL partitions → only Jan 16 remains  ← DANGEROUS
+# MAGIC DYNAMIC (correct): replaces ONLY Jan 16  → Jan 13, Jan 14 intact ← SAFE
 # MAGIC ```
 # MAGIC
 # MAGIC **Rule:** Always set `partitionOverwriteMode = dynamic`. Never rely on the default.

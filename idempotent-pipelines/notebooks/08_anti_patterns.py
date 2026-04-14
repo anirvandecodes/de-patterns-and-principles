@@ -1,7 +1,4 @@
 # Databricks notebook source
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC # Anti-Patterns: What Silently Breaks Idempotency
 # MAGIC

@@ -9,10 +9,6 @@
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
 dbutils.widgets.text("catalog", "workspace")
 dbutils.widgets.text("schema", "idempotency_demo")
 

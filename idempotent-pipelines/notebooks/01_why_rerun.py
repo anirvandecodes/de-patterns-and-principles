@@ -24,6 +24,21 @@
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Why would a pipeline re-run?
 # MAGIC
 # MAGIC | # | Reason | What happens |
@@ -33,6 +48,21 @@
 # MAGIC | 3 | **Bad data in source** | Source sent wrong values for Jan 15. They fix it. You reprocess that date |
 # MAGIC | 4 | **Bug in transform logic** | A calculation was wrong for 3 months. You fix it and backfill 90 days |
 # MAGIC | 5 | **Accidental double trigger** | Two people. One job. Both hit "Run Now" |
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
 
 # COMMAND ----------
 
