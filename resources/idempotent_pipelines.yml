@@ -17,6 +17,6 @@ resources:
       environments:
         - environment_key: serverless
           spec:
-            client: "1"
+            client: "5"
 
       max_concurrent_runs: 4
