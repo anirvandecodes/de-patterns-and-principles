@@ -1,128 +1,110 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC # Backfilling
-# MAGIC
-# MAGIC A backfill = running your pipeline for historical dates.
-# MAGIC
-# MAGIC **Backfilling is only safe if your writes are idempotent.**
-# MAGIC If you're using `.mode("append")` — backfilling will corrupt your data.
-# MAGIC Fix the write first. Then backfilling becomes trivial.
-# MAGIC
-# MAGIC Three strategies depending on your situation.
+
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "workspace")
-dbutils.widgets.text("schema", "idempotency_demo")
+# MAGIC %md
+# MAGIC # orders_daily_pipeline
+# MAGIC
+# MAGIC Loads daily orders from the source system and upserts into the orders table using MERGE.
+# MAGIC Idempotent — re-running the same `load_date` updates existing rows, never duplicates.
 
-catalog = dbutils.widgets.get("catalog")
-schema  = dbutils.widgets.get("schema")
+# COMMAND ----------
 
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
-spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+dbutils.widgets.text("load_date",        "")
+dbutils.widgets.text("catalog",          "workspace")
+dbutils.widgets.text("schema",           "idempotency_demo")
+dbutils.widgets.text("simulate_failure", "true")   # set to "false" when backfilling
+
+load_date        = dbutils.widgets.get("load_date")
+catalog          = dbutils.widgets.get("catalog")
+schema           = dbutils.widgets.get("schema")
+simulate_failure = dbutils.widgets.get("simulate_failure").lower() == "true"
+
+assert load_date, "load_date parameter is required"
+
+print(f"load_date:        {load_date}")
+print(f"simulate_failure: {simulate_failure}")
+
+# COMMAND ----------
 
 from pyspark.sql import Row
-from pyspark.sql.functions import lit, col
-from datetime import date, timedelta
+from pyspark.sql.functions import lit, current_timestamp, col
+from delta.tables import DeltaTable
 
-def get_source(load_date: str):
-    """Simulates reading from a source system for a given date."""
-    return spark.createDataFrame([
-        Row(order_id=f"{load_date}_1", amount=100.0, region="US"),
-        Row(order_id=f"{load_date}_2", amount=200.0, region="EU"),
-    ]).withColumn("order_date", lit(load_date))
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Strategy 1: Full Recompute
-# MAGIC
-# MAGIC Drop everything and rebuild from scratch.
-# MAGIC
-# MAGIC **When:** small table, schema change, or logic was fundamentally wrong.
+# MAGIC ## Step 1 — Extract: pull orders from source system
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {catalog}.{schema}.orders_backfill")
+# Simulates a source system outage.
+# Set simulate_failure=true to fail the run, false to succeed (e.g. during backfill).
+if simulate_failure:
+    import random, hashlib
+    EXTRACT_ERRORS = [
+        "Payment gateway timeout — no orders received after 3 retries",
+        "Source DB connection refused — orders_api replica is unavailable",
+        "S3 export incomplete — manifest file missing for partition dt={load_date}",
+        "Schema mismatch — column 'unit_price' not found in upstream feed",
+        "Row count anomaly — received 0 rows, expected ~500 for {load_date}",
+        "SSL certificate error — cannot verify identity of orders-api.internal",
+    ]
+    seed = int(hashlib.md5(load_date.encode()).hexdigest(), 16)
+    error = random.Random(seed).choice(EXTRACT_ERRORS).format(load_date=load_date)
+    raise RuntimeError(f"[{load_date}] Extract failed: {error}")
 
-all_dates = [str(date(2024, 1, 10) + timedelta(days=i)) for i in range(7)]
+# Simulated order feed for the day
+orders_raw = [
+    Row(order_id=f"ORD-{load_date}-001", customer_id="C100", product="Laptop Pro 15",       qty=1, unit_price=1299.99, status="SHIPPED"),
+    Row(order_id=f"ORD-{load_date}-002", customer_id="C204", product="Wireless Mouse",      qty=3, unit_price=  29.99, status="DELIVERED"),
+    Row(order_id=f"ORD-{load_date}-003", customer_id="C087", product="USB-C Hub",           qty=2, unit_price=  49.99, status="PENDING"),
+    Row(order_id=f"ORD-{load_date}-004", customer_id="C311", product="Mechanical Keyboard", qty=1, unit_price= 149.99, status="SHIPPED"),
+    Row(order_id=f"ORD-{load_date}-005", customer_id="C100", product='Monitor 27"',         qty=1, unit_price= 399.99, status="PENDING"),
+]
 
-for d in all_dates:
-    get_source(d).write.format("delta").mode("append") \
-        .partitionBy("order_date") \
-        .saveAsTable(f"{catalog}.{schema}.orders_backfill")
+incoming = (
+    spark.createDataFrame(orders_raw)
+    .withColumn("order_date", lit(load_date))
+    .withColumn("updated_at", current_timestamp())
+    .filter(col("order_date") == load_date)   # guard: only process today's records
+)
 
-print(f"✓ Full recompute done — {spark.table(f'{catalog}.{schema}.orders_backfill').count()} rows across {len(all_dates)} dates")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Strategy 2: Date-Loop Backfill
-# MAGIC
-# MAGIC Process one date at a time. Safe to resume — re-running the same date is a no-op.
-# MAGIC
-# MAGIC **When:** large table, only specific dates need rebuilding.
-
-# COMMAND ----------
-
-def backfill_date(load_date: str):
-    df = get_source(load_date).withColumn("amount_corrected", col("amount") * 1.1)
-    df.write.format("delta").mode("overwrite") \
-        .partitionBy("order_date") \
-        .saveAsTable(f"{catalog}.{schema}.orders_backfill")
-    print(f"  ✓ {load_date}")
-
-# Only Jan 12–14 had bad data — reprocess just those dates
-dates_to_fix = ["2024-01-12", "2024-01-13", "2024-01-14"]
-
-print("Backfilling affected dates:")
-for d in dates_to_fix:
-    backfill_date(d)
-
-# Re-run Jan 13 — completely safe
-backfill_date("2024-01-13")
-print()
-print(f"Total rows: {spark.table(f'{catalog}.{schema}.orders_backfill').count()} — no duplicates")
+display(incoming)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Strategy 3: Partition-Based Overwrite
+# MAGIC ## Step 2 — Load: MERGE into target table
 # MAGIC
-# MAGIC You know exactly which partition has bad data. Replace just that one.
-# MAGIC Fastest — everything else is untouched.
+# MAGIC Match on `order_id` (natural key).
+# MAGIC - **Matched** → update `status` and `updated_at` (status can change between runs)
+# MAGIC - **Not matched** → insert new order
 # MAGIC
-# MAGIC **When:** a specific partition has bad data and the rest of the table is correct.
+# MAGIC Re-running the same `load_date` is safe — existing rows are updated in place.
 
 # COMMAND ----------
 
-# Jan 16 had wrong amounts — fix just that partition
-get_source("2024-01-16").withColumn("amount", col("amount") * 1.15) \
-    .write.format("delta").mode("overwrite") \
-    .partitionBy("order_date") \
-    .saveAsTable(f"{catalog}.{schema}.orders_backfill")
+table_path = f"{catalog}.{schema}.orders_jobs"
 
-print(f"✓ Rebuilt Jan 16 partition only")
-print(f"Total rows: {spark.table(f'{catalog}.{schema}.orders_backfill').count()} — all other dates untouched")
+# Create table on first run
+incoming.write.format("delta").mode("ignore").saveAsTable(table_path)
 
-# COMMAND ----------
+(
+    DeltaTable.forName(spark, table_path)
+    .alias("tgt")
+    .merge(incoming.alias("src"), "tgt.order_id = src.order_id")
+    .whenMatchedUpdate(set={
+        "status":     "src.status",
+        "updated_at": "src.updated_at",
+    })
+    .whenNotMatchedInsertAll()
+    .execute()
+)
 
-display(spark.table(f"{catalog}.{schema}.orders_backfill").orderBy("order_date"))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Backfill decision guide
-# MAGIC
-# MAGIC ```
-# MAGIC Is the table small or logic fundamentally broken?
-# MAGIC   → Strategy 1: Full Recompute
-# MAGIC
-# MAGIC Large table, multiple dates affected?
-# MAGIC   → Strategy 2: Date-Loop (one date at a time, resumable)
-# MAGIC
-# MAGIC Only one or two specific partitions are wrong?
-# MAGIC   → Strategy 3: Partition Overwrite (surgical, fastest)
-# MAGIC ```
-# MAGIC
-# MAGIC **All three are safe because the underlying write is idempotent.**
+row_count = spark.table(table_path).filter(col("order_date") == load_date).count()
+print(f"✓ Merged {load_date} → {table_path}")
+print(f"  Rows for {load_date}: {row_count}  ← re-run this cell, count stays the same")
