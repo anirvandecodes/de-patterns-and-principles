@@ -25,6 +25,11 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
 
 # COMMAND ----------
 
+# MAGIC %sql 
+# MAGIC drop table if exists workspace.idempotency_demo.orders_insert_overwrite;
+
+# COMMAND ----------
+
 spark.sql(f"""
     CREATE TABLE IF NOT EXISTS {catalog}.{schema}.orders_insert_overwrite (
         order_id    STRING,
