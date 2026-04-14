@@ -43,6 +43,12 @@ spark.sql(f"""
 
 # COMMAND ----------
 
+# MAGIC %sql
+# MAGIC
+# MAGIC drop table if exists workspace.idempotency_demo.orders_insert_overwrite
+
+# COMMAND ----------
+
 spark.sql(f"""
     INSERT INTO {catalog}.{schema}.orders_insert_overwrite VALUES
     ('O901', 'C9', 90.0,  '2024-01-14'),
